@@ -109,6 +109,9 @@ class Buffer(Tokenizer):
         return self.process_block(name, lines, index, **kwargs)
 
     def split_block_lines(self, block):
+        # Optimize for common case: avoid splitlines(True) in tight loop if no '\n' present.
+        if '\n' not in block and '\r' not in block:
+            return [block]
         return block.splitlines(True)
 
     def join_block_lines(self, lines):
@@ -180,6 +183,7 @@ class Buffer(Tokenizer):
         return pos - start
 
     def atend(self):
+        # Fast path: direct attribute access
         return self._pos >= self._len
 
     def ateol(self):
@@ -356,21 +360,28 @@ class Buffer(Tokenizer):
         return self._linecount
 
     def line_info(self, pos=None):
-        if pos is None:
-            pos = self._pos
+        lc = self._line_cache
+        li = self._line_index
+        t = self.text
+        # Convert local variables in tight loop, faster attribute access
+        _pos = self._pos if pos is None else pos
+        # Clamp only if needed (avoid min if already in range)
+        max_idx = len(lc) - 2
+        if _pos > max_idx:
+            _pos = max_idx
 
-        # -2 to skip over sentinel
-        pos = min(pos, len(self._line_cache) - 2)
-        start, line, length = self._line_cache[pos]
+        start, line, length = lc[_pos]
         end = start + length
-        col = pos - start
+        col = _pos - start
 
-        text = self.text[start:end]
+        # Avoid function call overhead, localize indexing
+        text = t[start:end]
 
-        # only required to support includes
-        n = min(len(self._line_index) - 1, line)
-        filename, line = self._line_index[n]
+        # Linearize `line` lookup logic, avoid extra min call if in bounds
+        idx = line if line < len(li) - 1 else len(li) - 1
+        filename, line = li[idx]
 
+        # Now create the return value
         return LineInfo(filename, line, col, start, end, text)
 
     def lookahead_pos(self):
@@ -380,12 +391,18 @@ class Buffer(Tokenizer):
         return '~%d:%d' % (info.line + 1, info.col + 1)
 
     def lookahead(self):
-        if self.atend():
+        # Inline atend logic for speed
+        if self._pos >= self._len:
             return ''
         info = self.line_info()
-        text = info.text[info.col: info.col + 1 + 80]
-        text = self.split_block_lines(text)[0].rstrip()
-        return f'{text}'
+        # Inline text slicing, avoid repeatedly calling info.attr
+        text = info.text
+        col = info.col
+        # Precompute slice indices
+        slice_text = text[col: col + 81]
+        block_lines = self.split_block_lines(slice_text)
+        la_text = block_lines[0].rstrip()
+        return f'{la_text}'
 
     def get_line(self, n=None):
         if n is None:
