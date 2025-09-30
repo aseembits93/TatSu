@@ -62,7 +62,6 @@ class Buffer(Tokenizer):
         self._line_index: list[LineIndexInfo] = []
         self._line_cache: list[PosLine] = []
         self._comment_index: list[CommentInfo] = []
-
         self._preprocess()
         self._postprocess()
 
@@ -197,7 +196,8 @@ class Buffer(Tokenizer):
         return self.text[p]
 
     def peek(self, n=1):
-        return self.at(self._pos + n)
+        p = self._pos + n
+        return self.text[p] if p < self._len else None
 
     def next(self):
         if self.atend():
