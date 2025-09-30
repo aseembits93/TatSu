@@ -279,11 +279,14 @@ class Buffer(Tokenizer):
             self.eat_whitespace()
 
     def skip_to(self, c):
+        # Optimize by using str.find for faster skipping instead of a Python loop
         p = self._pos
-        le = self._len
-        while p < le and self.text[p] != c:
-            p += 1
-        self.goto(p)
+        idx = self.text.find(c, p, self._len)
+        if idx == -1:
+            p_new = self._len
+        else:
+            p_new = idx
+        self.goto(p_new)
         return self.pos
 
     def skip_past(self, c):
