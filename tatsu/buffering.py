@@ -200,10 +200,13 @@ class Buffer(Tokenizer):
         return self.at(self._pos + n)
 
     def next(self):
-        if self.atend():
+        # Branchless fast path for single character access
+        pos = self._pos
+        if pos >= self._len:
             return None
-        c = self.text[self._pos]
-        self._pos += 1
+        # Eliminate local lookup overhead for text
+        c = self.text[pos]
+        self._pos = pos + 1
         return c
 
     def goto(self, pos):
