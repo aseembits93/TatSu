@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
-from functools import cache
+from functools import lru_cache, cache
 from typing import TypeVar
 
 _T = TypeVar('_T')
@@ -110,8 +110,14 @@ def topsort(nodes: Iterable[_T], order: Iterable[tuple[_T, _T]]) -> list[_T]:
     return list(reversed(result))  # a topologically sorted list
 
 
-@cache
 def cached_re_compile(regex: re.Pattern | str | bytes) -> re.Pattern | None:
     if isinstance(regex, re.Pattern):
         return regex
-    return re.compile(regex) if isinstance(regex, (str | bytes)) else None
+    if isinstance(regex, (str, bytes)):
+        return _cached_re_compile(regex)
+    return None
+
+
+@lru_cache(maxsize=None)
+def _cached_re_compile(regex: str | bytes) -> re.Pattern:
+    return re.compile(regex)

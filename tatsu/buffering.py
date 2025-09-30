@@ -24,9 +24,7 @@ from .infos import (
 from .tokenizing import Tokenizer
 from .util import (
     contains_sublist,
-    extend_list,
-    identity,
-)
+    extend_list)
 from .util.misc import cached_re_compile, match_to_find
 
 DEFAULT_WHITESPACE_RE = re.compile(r'(?m)\s+')
@@ -257,7 +255,12 @@ class Buffer(Tokenizer):
         if not regex:
             return []
         regex = cached_re_compile(regex)
-        return list(takewhile(identity, map(self.matchre, repeat(regex))))
+        result = []
+        match = self.matchre(regex)
+        while match:
+            result.append(match)
+            match = self.matchre(regex)
+        return result
 
     def eat_whitespace(self):
         return self._eat_regex(self.whitespace_re)
