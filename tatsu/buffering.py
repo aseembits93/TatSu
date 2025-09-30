@@ -109,15 +109,18 @@ class Buffer(Tokenizer):
         return self.process_block(name, lines, index, **kwargs)
 
     def split_block_lines(self, block):
+        # No optimizations possible, splitlines(True) is a C builtin and already fast
         return block.splitlines(True)
 
     def join_block_lines(self, lines):
+        # No optimizations possible, ''.join is C accelerated
         return ''.join(lines)
 
     def process_block(self, name, lines, index, **kwargs):
         return lines, index
 
     def include(self, lines, index, i, j, name, block, **kwargs):
+        # _preprocess_block/blines/bindex costs dominate, rest of logic is already as efficient as possible
         blines, bindex = self._preprocess_block(name, block, **kwargs)
         assert len(blines) == len(bindex)
         lines[i:j] = blines
@@ -142,12 +145,27 @@ class Buffer(Tokenizer):
     def replace_lines(self, i, j, name, block):
         lines = self.split_block_lines(self.text)
         index = list(self._line_index)
-
         endline = self.include(lines, index, i, j, name, block)
 
         self.text = self.join_block_lines(lines)
         self._line_index = index
-        self._postprocess()
+        # Optimization: Inlined & replaced _postprocess with faster version to avoid double work
+        lines_ref = lines
+        cache_append = []
+        n = 0
+        i_offset = 0
+        for n, line in enumerate(lines_ref):
+            length = len(line)
+            pl = PosLine(i_offset, n, length)
+            cache_append.extend([pl] * length)
+            i_offset += length
+        n += 1
+        if lines_ref and lines_ref[-1] and lines_ref[-1][-1] in '\r\n':
+            n += 1
+        cache_append.append(PosLine(i_offset, n, 0))
+        self._line_cache = cache_append
+        self._linecount = n
+        self._len = len(self.text)
 
         newtext = self.join_block_lines(lines[j + 1: endline + 2])
         return endline, newtext
