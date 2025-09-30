@@ -41,7 +41,14 @@ def kdot(x, y, k):
 
 
 def pythonize_name(name):
-    return ''.join('_' + c.lower() if c.isupper() else c for c in name)
+    result = []
+    for c in name:
+        if c.isupper():
+            result.append('_')
+            result.append(c.lower())
+        else:
+            result.append(c)
+    return ''.join(result)
 
 
 class ModelContext(ParseContext):
