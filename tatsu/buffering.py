@@ -250,8 +250,11 @@ class Buffer(Tokenizer):
     def _eat_regex(self, regex):
         if not regex:
             return
-        while self._matchre_fast(regex):
-            pass
+        while True:
+            m = regex.match(self.text, self._pos)
+            if not m:
+                break
+            self._pos += m.end() - m.start()
 
     def _eat_regex_list(self, regex):
         if not regex:
