@@ -66,6 +66,16 @@ class Buffer(Tokenizer):
         self._preprocess()
         self._postprocess()
 
+        # Optimization: cache the match method for whitespace_re if possible
+        # Only cache if whitespace_re pattern is not None, otherwise avoid attribute
+        # This avoids repeated attribute lookup of .match per call to scan_space
+        if self.whitespace_re:
+            # We know all re.Pattern have a .match method; safe to cache reference
+            # If whitespace_re is not a re.Pattern, this may break original behavior, but according to tatsu/buffering.py logic, it is always a compiled pattern (or None)
+            self._whitespace_match = self.whitespace_re.match
+        else:
+            self._whitespace_match = None
+
     @property
     def filename(self):
         return self.config.filename
@@ -295,9 +305,11 @@ class Buffer(Tokenizer):
         return self.skip_to('\n')
 
     def scan_space(self):
-        return (
-            self.whitespace_re and self._scanre(self.whitespace_re) is not None
-        )
+        # Optimization: Use cached .match reference and avoid attribute lookup in tight loop
+        match = self._whitespace_match
+        if match is not None:
+            return match(self.text, self._pos) is not None
+        return False
 
     def is_space(self):
         return self.scan_space()
