@@ -183,7 +183,7 @@ class Buffer(Tokenizer):
         return self._pos >= self._len
 
     def ateol(self):
-        return self.atend() or self.current in '\r\n'
+        return self._pos >= self._len or self.text[self._pos] in '\r\n'
 
     @property
     def current(self):
