@@ -28,6 +28,7 @@ from .util import (
     identity,
 )
 from .util.misc import cached_re_compile, match_to_find
+from functools import cache
 
 DEFAULT_WHITESPACE_RE = re.compile(r'(?m)\s+')
 
@@ -79,6 +80,7 @@ class Buffer(Tokenizer):
         return self.config.whitespace
 
     @staticmethod
+    @cache
     def build_whitespace_re(whitespace):
         if type(whitespace) is UndefinedStr:
             return DEFAULT_WHITESPACE_RE
