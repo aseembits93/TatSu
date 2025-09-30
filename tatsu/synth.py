@@ -14,18 +14,16 @@ class _Synthetic:
 
 
 def synthesize(name, bases):
-    typename = f'{__name__}.{name}'
-
+    # Use plain name as registry key, fallback to type's name if needed
+    typename = str(name)
     if not isinstance(bases, tuple):
         bases = (bases,)
-
+    # Only add _Synthetic if not present
     if _Synthetic not in bases:
         bases += (_Synthetic,)
-
     constructor = __REGISTRY.get(typename)
     if not constructor:
         constructor = type(name, bases, {})
-        typename = constructor.__name__
+        typename = constructor.__name__  # update registry key if unique type name
         __REGISTRY[typename] = constructor
-
     return constructor

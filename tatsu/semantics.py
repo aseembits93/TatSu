@@ -35,6 +35,7 @@ class ModelBuilderSemantics:
         self.base_type = base_type
 
         self.constructors = {}
+        self._existing_constructor_cache = {}  # cache for constructor lookup
 
         for t in types or ():
             self._register_constructor(t)
@@ -44,8 +45,14 @@ class ModelBuilderSemantics:
         return constructor
 
     def _find_existing_constructor(self, typename):
+        # Use per-instance cache for constructor lookups to avoid repeated introspection of builtins
+        cache = self._existing_constructor_cache
+        if typename in cache:
+            return cache[typename]
+
         constructor = builtins
-        for name in typename.split('.'):
+        splitted = typename.split('.')
+        for name in splitted:
             try:
                 context = vars(constructor)
             except Exception as e:
@@ -57,13 +64,15 @@ class ModelBuilderSemantics:
             else:
                 constructor = None
                 break
+        cache[typename] = constructor
         return constructor
 
     def _get_constructor(self, typename, base):
         typename = str(typename)
 
-        if typename in self.constructors:
-            return self.constructors[typename]
+        ctor = self.constructors.get(typename)
+        if ctor is not None:
+            return ctor
 
         constructor = self._find_existing_constructor(typename)
         if not constructor:
