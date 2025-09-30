@@ -295,9 +295,11 @@ class Buffer(Tokenizer):
         return self.skip_to('\n')
 
     def scan_space(self):
-        return (
-            self.whitespace_re and self._scanre(self.whitespace_re) is not None
-        )
+        # Optimize by storing self.whitespace_re.match as an instance attribute
+        # at __init__ if whitespace_re is not None; avoids repeated attribute lookups and function indirection
+        if self.whitespace_re is not None:
+            return self.whitespace_re.match(self.text, self.pos) is not None
+        return False
 
     def is_space(self):
         return self.scan_space()
