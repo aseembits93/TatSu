@@ -360,7 +360,7 @@ class Buffer(Tokenizer):
             pos = self._pos
 
         # -2 to skip over sentinel
-        pos = min(pos, len(self._line_cache) - 2)
+        pos = pos if pos <= len(self._line_cache) - 2 else len(self._line_cache) - 2
         start, line, length = self._line_cache[pos]
         end = start + length
         col = pos - start
@@ -368,7 +368,7 @@ class Buffer(Tokenizer):
         text = self.text[start:end]
 
         # only required to support includes
-        n = min(len(self._line_index) - 1, line)
+        n = line if line < len(self._line_index) - 1 else len(self._line_index) - 1
         filename, line = self._line_index[n]
 
         return LineInfo(filename, line, col, start, end, text)
