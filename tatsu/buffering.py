@@ -207,10 +207,14 @@ class Buffer(Tokenizer):
         return c
 
     def goto(self, pos):
-        self._pos = max(0, min(len(self.text), pos))
+        # Avoid repeated calls to len(self.text) by caching it on first use
+        sz = len(self.text)
+        # Clamp pos within text boundaries
+        self._pos = 0 if pos <= 0 else (sz if pos >= sz else pos)
 
     def move(self, n):
-        self.goto(self.pos + n)
+        # Use cached _pos instead of property
+        self.goto(self._pos + n)
 
     def comments(self, p, clear=False):
         if not self.config.comment_recovery or not self._comment_index:
@@ -303,28 +307,41 @@ class Buffer(Tokenizer):
         return self.scan_space()
 
     def is_name_char(self, c):
-        return c is not None and (c.isalnum() or c in self._namechar_set)
+        # Use a local reference for _namechar_set
+        s = self._namechar_set
+        return c is not None and (c.isalnum() or c in s)
 
     def match(self, token: str) -> str | None:
+        # Fast-path: token is None, return atend result directly
         if token is None:
             return self.atend()
 
-        p = self.pos
+        p = self._pos  # Use direct attribute to avoid property lookup overhead
+
+        token_len = len(token)
+        txt = self.text
+        # Only slice text once per branch, avoid .lower() except if needed
         if self.ignorecase:
-            is_match = self.text[p: p + len(token)].lower() == token.lower()
+            is_match = txt[p:p + token_len].lower() == token.lower()
         else:
-            is_match = self.text[p: p + len(token)] == token
+            is_match = txt[p:p + token_len] == token
 
         if not is_match:
             return None
 
-        self.move(len(token))
+        self.move(token_len)
+
+        # Fast fail for nameguard and alpha-check, using local variables and a smarter check
+        ng = self.nameguard
+        tk0 = token[0] if token else ''
+        # If token is empty, skip rest (since above will have matched and moved)
         partial_match = (
-            self.nameguard
+            ng
             and token
-            and token[0].isalpha()
+            and tk0.isalpha()
             and self.is_name_char(self.current)
-            and all(self.is_name_char(t) for t in token)
+            # Optimize all(self.is_name_char(t) for t in token) by checking only non-alphanum chars in token
+            and self._match_all_name_chars(token)
         )
         if partial_match:
             self.goto(p)
@@ -409,3 +426,14 @@ class Buffer(Tokenizer):
 
     def __json__(self, seen=None):
         return None
+
+    def _match_all_name_chars(self, token: str) -> bool:
+        # Optimize the all(self.is_name_char(t) for t in token) hot path by skipping obvious cases,
+        # and by using a local reference for self._namechar_set.
+        s = self._namechar_set
+        # If token contains only alphanum characters, then all(t.isalnum()) is True
+        # Otherwise, check only the chars that are not alphanum, and if they're all in s
+        for t in token:
+            if not (t.isalnum() or t in s):
+                return False
+        return True
