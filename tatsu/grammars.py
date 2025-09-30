@@ -24,7 +24,7 @@ PRAGMA_RE = r'^\s*#include.*$'
 
 class _ref(str):
     def __repr__(self):
-        return f'<{self}>'
+        return '<' + self + '>'
 
 
 def ref(name):
