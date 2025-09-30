@@ -118,12 +118,17 @@ class Buffer(Tokenizer):
         return lines, index
 
     def include(self, lines, index, i, j, name, block, **kwargs):
-        blines, bindex = self._preprocess_block(name, block, **kwargs)
-        assert len(blines) == len(bindex)
+        # Inline _preprocess_block logic since only used here
+        blines = block.splitlines(True)
+        nlines = len(blines)
+        bindex = LineIndexInfo.block_index(name, nlines) if nlines else []
+        # Avoid redundant assertion/computation
+        assert nlines == len(bindex)
         lines[i:j] = blines
         index[i:j] = bindex
         assert len(lines) == len(index)
-        return j + len(blines) - 1
+        # Avoid recomputation of len(blines)
+        return j + nlines - 1
 
     def include_file(self, source, name, lines, index, i, j):
         text, filename = self.get_include(source, name)
