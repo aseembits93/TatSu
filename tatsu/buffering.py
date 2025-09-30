@@ -400,9 +400,12 @@ class Buffer(Tokenizer):
         return self._lines[start: end + 1]
 
     def line_index(self, start=0, end=None):
+        idx = self._line_index
+        if start == 0 and end is None:
+            return idx
         if end is None:
-            end = len(self._line_index)
-        return self._line_index[start: 1 + end]
+            end = len(idx)
+        return idx[start: 1 + end]
 
     def __repr__(self):
         return '%s@%d' % (type(self).__name__, self.pos)
