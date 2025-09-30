@@ -74,8 +74,8 @@ class Model(Node):
         return [
             c
             # Copy globals() before iterating to be thread-safe.
-            for c in globals().copy().values()
-            if isinstance(c, type) and issubclass(c, Model)
+            for c in globals().values()
+            if type(c) is type and issubclass(c, Model)
         ]
 
     def __init__(self, ast=None, ctx=None):
